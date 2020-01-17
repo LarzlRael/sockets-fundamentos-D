@@ -2,34 +2,41 @@ const { io } = require('../server')
 //para ver que todo esta correctamente tenemos que entrar a :
 //http://localhost:3000/socket.io/socket.io.js y tiene que darnos un archivo
 
+const { TicketControl } = require('../classes/Ticket-control');
+const tikenControl = new TicketControl();
+
+
 //para verificar la conexion
 io.on('connection', (client) => {
-    console.log('usuario conectado');
+    client.on('siguienteTicket', (data, callback) => {
 
-    client.emit('enviarMensaje', {
-        usuario: 'administrador',
-        mensaje: 'bienvenido a esta aplicacion',
-        desde: 'pues desde socket puerco'
-    })
+        let siguiente = tikenControl.siguiente();
 
-
-    //detectar si un usuario esta contectado del lado del cliente
-    client.on('disconnect', () => {
-        console.log('Usuario desconectado')
+        console.log(`siguiente : ` + siguiente)
+        callback(siguiente);
     });
-    //Escuchar al cliente (el enviarMensaje tiene que ser el mismo que el front)
-    // el callback es lo que queremos hacer cuando todo salio bien
-    client.on('enviarMensaje', (data, callback) => {
-        console.log(data);
-        client.broadcast.emit('enviarMensaje', data);
-        // if (mensaje.usuario) {
-        //     callback({
-        //         res: 'todo salio bien'
-        //     })
-        // } else {
-        //     callback({
-        //         res: 'todo salio mal !!!!!!!!'
-        //     })
-        // }
+
+    //emitir un evento llamado estado actual
+    client.emit('estadoActual', {
+        actual: tikenControl.getUltimoTicket(),
+        ultimos4:tikenControl.getUltimos4()
+    });
+
+    client.on('atenderTicket', (data, callback) => {
+        if (!data.escritorio) {
+            return callback({
+                err: true,
+                mensaje: 'El escritorio es nesesario'
+            })
+        };
+
+        let atenderTicket = tikenControl.atenderTicket(data.escritorio)
+
+        callback(atenderTicket);
+        // actualizar y notificar en los ultimos 4
+        
+        client.broadcast.emit('ultimos4',{
+            ultimos4: tikenControl.getUltimos4()
+        });
     })
-});
+});;
